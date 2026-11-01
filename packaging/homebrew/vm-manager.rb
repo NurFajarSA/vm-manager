@@ -5,7 +5,7 @@
 # After a release is published, scripts/update-cask.sh <version> <tap-checkout> fills in the checksum and copies it there.
 cask "vm-manager" do
   version "1.0.0"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "d7cc8af1568b79e140a9b2ed002b48e707ccf8ed16ab225c351b6c54f0139f71"
 
   url "https://github.com/NurFajarSA/vm-manager/releases/download/v#{version}/VMManager-#{version}-macos-arm64.zip"
   name "VM Manager"
