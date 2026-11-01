@@ -1,0 +1,16 @@
+{
+  "checkedAt": "__AGO_1__",
+  "network": {
+    "openvpn": { "up": false, "interface": null, "via": null, "routes": ["192.0.2.0/24"] },
+    "tailscale": { "installed": true, "running": true, "tailnet": "example.ts.net" }
+  },
+  "vms": [
+    { "name": "shop-web-prod", "state": "reachable", "latencyMs": 31, "detail": "port 22 open" },
+    { "name": "shop-web-dev", "state": "needs_vpn", "latencyMs": null, "detail": "connect OpenVPN first" },
+    { "name": "shop-api-dev", "state": "needs_vpn", "latencyMs": null, "detail": "connect OpenVPN first" },
+    { "name": "shop-payments-prod", "state": "reachable", "latencyMs": 29, "detail": "port 22 open" },
+    { "name": "warehouse", "state": "reachable", "latencyMs": 74, "detail": "port 22 open" },
+    { "name": "gpu-train-01", "state": "reachable", "latencyMs": 12, "detail": "port 22 open" },
+    { "name": "gpu-lab-02", "state": "unreachable", "latencyMs": null, "detail": "timed out" }
+  ]
+}

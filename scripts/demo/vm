@@ -1,0 +1,21 @@
+#!/bin/zsh
+# Stand-in for vm that answers the menu bar app from the fixtures next to it, for screenshots.
+# Every address in the fixtures is from the documentation ranges (192.0.2.x, 198.51.100.x), so no real host shows up.
+# Usage: VM_MANAGER_BIN=scripts/demo/vm "dist/VM Manager.app/Contents/MacOS/VMManager"
+# Paths use /Users/alex and follow CFFIXED_USER_HOME when it is set; __AGO_n__ and __IN_n__ become n minutes ago or from now.
+here=${0:A:h}
+show() {
+  sed -e "s#/Users/alex#${CFFIXED_USER_HOME:-/Users/alex}#g" "$here/$1.json" |
+    perl -MPOSIX -pe 's/__AGO_(\d+)__/strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time - $1 * 60))/ge; s/__IN_(\d+)__/strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time + $1 * 60))/ge'
+}
+case "$1 $2" in
+  "list "*) show list ;;
+  "status "*) show status ;;
+  "approvals "*) show approvals ;;
+  "audit "*) show audit ;;
+  "policy "*) show policy ;;
+  "check "*) show check ;;
+  "login-item "*) echo on ;;
+  "vpn-routes "*) echo '{ "routes": ["192.0.2.0/24"] }' ;;
+  *) echo "demo: '$*' is not available in demo mode" >&2; exit 1 ;;
+esac

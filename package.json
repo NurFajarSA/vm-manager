@@ -1,0 +1,24 @@
+{
+  "name": "vm-manager",
+  "version": "0.1.0",
+  "description": "One inventory for your SSH servers, a native menu bar app, and supervised access for Claude agents.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build --compile --minify src/cli.ts --outfile dist/vm && codesign --force --sign - --identifier app.vm-manager.cli dist/vm",
+    "build:app": "./macos/build-app.sh",
+    "install:local": "bun run build && bun run build:app && ./dist/vm install --app \"dist/VM Manager.app\"",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p .",
+    "check": "bun run typecheck && bun test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}

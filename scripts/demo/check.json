@@ -1,0 +1,23 @@
+{
+  "command": "docker compose restart api",
+  "classification": {
+    "readOnly": false,
+    "reason": "`restart` is not a read-only subcommand"
+  },
+  "block": null,
+  "decisions": {
+    "free": {
+      "kind": "run",
+      "readOnly": false,
+      "reason": "this server lets agents run changes"
+    },
+    "read-free-change-approve": {
+      "kind": "approve",
+      "reason": "changes on this server need approval"
+    },
+    "none": {
+      "kind": "refuse",
+      "reason": "Agent access is off for this server. The user can turn it on in VM Manager."
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "policies": [
+    {
+      "id": "free",
+      "label": "Run anything"
+    },
+    {
+      "id": "read-free-change-approve",
+      "label": "Read freely, ask before changes"
+    },
+    {
+      "id": "none",
+      "label": "No agent access"
+    }
+  ],
+  "readOnly": [
+    "cat, head, tail, less, ls, wc, stat, grep",
+    "df, du, free, uptime, whoami, id, uname, hostname, nproc, lsblk, w, who, ps, top -b -n1",
+    "find (without -exec or -delete)",
+    "journalctl (without --vacuum or --rotate)",
+    "systemctl status, is-active, is-enabled, is-failed, list-units, list-timers, show",
+    "docker ps, logs, inspect, images, top, version, info, stats --no-stream",
+    "docker compose ps, logs, ls, images, top",
+    "git status, log, diff, show",
+    "ss, netstat, ip a, ip route, curl -I, nvidia-smi"
+  ],
+  "hardBlocks": [
+    "rm -rf /",
+    "rm -rf /*",
+    "mkfs",
+    "dd of=/dev/",
+    "shutdown",
+    "reboot",
+    "poweroff",
+    "halt",
+    ":(){ (fork bomb)"
+  ],
+  "destructive": [
+    "DROP DATABASE",
+    "DROP SCHEMA",
+    "DROP TABLE",
+    "TRUNCATE"
+  ]
+}

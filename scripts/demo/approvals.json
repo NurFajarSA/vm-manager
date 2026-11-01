@@ -1,0 +1,5 @@
+[
+  { "id": "3f9a1c2e", "vm": "shop-web-prod", "env": "prod", "command": "docker compose -f /srv/shop/docker-compose.yml restart api", "requester": "claude-code in shop-backend", "reason": "changes on this server need approval", "why": "Restart the API so it picks up the new environment variables.", "status": "pending", "createdAt": "__AGO_1__", "expiresAt": "__IN_9__", "decidedAt": null, "decidedBy": null },
+  { "id": "a41d0b77", "vm": "gpu-train-01", "env": "prod", "command": "sudo systemctl restart nvidia-persistenced", "requester": "claude-code in lab-tools", "reason": "changes on this server need approval", "why": null, "status": "approved", "createdAt": "__AGO_95__", "expiresAt": "__AGO_85__", "decidedAt": "__AGO_94__", "decidedBy": "app" },
+  { "id": "c0ffee12", "vm": "warehouse", "env": "prod", "command": "psql -c \"TRUNCATE staging_orders\"", "requester": "claude-code in etl", "reason": "TRUNCATE always needs approval", "why": "Clear the staging table before the re-import.", "status": "denied", "createdAt": "__AGO_200__", "expiresAt": "__AGO_190__", "decidedAt": "__AGO_199__", "decidedBy": "app" }
+]
