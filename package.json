@@ -1,10 +1,11 @@
 {
   "name": "vm-manager",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "One inventory for your SSH servers, a native menu bar app, and supervised access for Claude agents.",
   "license": "MIT",
   "private": true,
   "type": "module",
+  "repository": "github:NurFajarSA/vm-manager",
   "scripts": {
     "build": "bun build --compile --minify src/cli.ts --outfile dist/vm && codesign --force --sign - --identifier app.vm-manager.cli dist/vm",
     "build:app": "./macos/build-app.sh",

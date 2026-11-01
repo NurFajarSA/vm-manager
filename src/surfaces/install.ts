@@ -68,13 +68,9 @@ export async function install({ paths, sourceBinary, app }: { paths: Paths; sour
   if (app) {
     await step("menu bar app", async () => {
       await mkdir(l.appDir, { recursive: true });
-      const source = resolve(app);
-      const inPlace = [l.appDir, SYSTEM_APP_DIR].includes(dirname(source));
-      const target = inPlace ? source : join(l.appDir, basename(app));
-      if (!inPlace) {
-        await removeApp(target);
-        await cp(app, target, { recursive: true });
-      }
+      const { target, inPlace, remove } = appPlacement(app, l);
+      for (const stale of remove) await removeApp(stale);
+      if (!inPlace) await cp(app, target, { recursive: true });
       await unquarantine(target);
       const plist = join(l.launchAgents, `${APP_LABEL}.plist`);
       await writeLaunchAgent(plist, APP_LABEL, appLaunchArgs(target), paths.logFile);
@@ -83,6 +79,19 @@ export async function install({ paths, sourceBinary, app }: { paths: Paths; sour
     });
   }
   return steps;
+}
+
+/**
+ * Where `vm install --app` puts the app. An app already in an Applications folder (Homebrew puts it in
+ * /Applications) stays where it is; anything else is copied to ~/Applications. A copy left in ~/Applications by an
+ * earlier install is removed, so the login item and Launch at Login never pick an old version.
+ */
+export function appPlacement(app: string, l: InstallLayout): { target: string; inPlace: boolean; remove: string[] } {
+  const source = resolve(app);
+  const inPlace = [l.appDir, SYSTEM_APP_DIR].includes(dirname(source));
+  const target = inPlace ? source : join(l.appDir, basename(source));
+  const copy = join(l.appDir, basename(source));
+  return { target, inPlace, remove: copy !== target || !inPlace ? [copy] : [] };
 }
 
 export async function uninstall({ paths }: { paths: Paths }): Promise<Step[]> {
