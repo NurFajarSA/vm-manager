@@ -2,6 +2,8 @@
 
 Your SSH servers in one list, a native menu bar app for them, and Claude agents that can work on them under supervision.
 
+[![CI](https://github.com/NurFajarSA/vm-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/NurFajarSA/vm-manager/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black)
 ![Apple silicon](https://img.shields.io/badge/Apple%20silicon-arm64-black)
 
@@ -26,7 +28,7 @@ A handful of servers is easy to lose track of: which IP was the payment box, whi
 **Inventory**
 - One list in `~/.config/vm-manager/vms.json`: name, group, prod or dev, address, port, user, key file or password, network (public, OpenVPN Connect or Tailscale), other hostnames, notes, and what agents may do.
 - Inactive servers stay in the list so their addresses aren't forgotten, but never reach `~/.ssh/config` or agents.
-- A warning when a server's key file is missing on this Mac.
+- A warning when a server's key file is missing on this Mac, or a password server has no saved password.
 
 **SSH**
 - `vm sync-ssh` writes a `Host` block per server, so `ssh shop-api-dev`, `scp`, `rsync`, Zed and VS Code Remote all work by name.
@@ -96,11 +98,72 @@ The supervision applies to agents whose only way to the servers is the MCP serve
 
 These close the obvious routes. They are not a sandbox.
 
+## Use cases
+
+### Pick a server from the Dock
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/server-picker-dark.png">
+    <img src="docs/images/server-picker.png" width="600" alt="Server picker window titled Which server do you want to open, with a card per active server grouped into Shop, Data and GPU; each card shows a server symbol tinted red for prod or green for dev, a reachability dot, the name, user@address, a PROD or DEV badge, and hints such as Needs VPN, Key missing or No password">
+  </picture>
+</p>
+
+Open VM Manager from the Dock, Finder or Spotlight and it asks which server to open. Each card shows the server's `user@address`, a PROD or DEV badge, the reachability dot, and a hint when it needs the VPN, its key file is missing or no password is saved. Click a card to run `vm ssh <name>` in Terminal (password servers sign in from the Keychain) and close the picker; right-click for Copy IP, Copy SSH Command and Open in Zed; Esc closes it. **Choose Server…** in the menu bar opens it too. It stays hidden when the app starts at login (the login item passes `--at-login`), and the **Show when VM Manager opens** checkbox turns it off.
+
+### An agent looks into a production problem
+
+Ask Claude "why is the API on shop-web-prod returning 502?" It reads logs and status with `vm_read` and `vm_logs`, which run at once. When it wants to restart a container, `vm_change` sends you a notification with the exact command and its reason. Nothing runs until you press **Approve**, and a denied command comes back with "do not retry it". The audit log keeps every step.
+
+### Servers behind a VPN
+
+Mark a server with `--network vpn:openvpn` and tell VM Manager which subnets your OpenVPN profile routes (`vm vpn-routes 10.8.0.0/16`, or **Settings › Network**). The VPN chip in the panel turns green when this Mac has a route there, and a server that doesn't answer while the VPN is off shows an orange dot and "connect OpenVPN first" instead of a vague timeout. Tailscale servers work the same way, from `tailscale status`.
+
+### Retiring a password login
+
+A server that still takes a password signs in from the Keychain, so nobody types it. When you are ready to move it to a key, `vm key-setup <name>` (or **Set Up Key Login…** in Settings) copies the key with the saved password, checks that it works, and switches the server over.
+
 ## Install
 
-Requirements: macOS 15 or later on Apple silicon, [Bun](https://bun.sh) 1.3 or later, Xcode 16 or later (Swift 6), and the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) for the MCP server.
+Requirements: macOS 15 or later on Apple silicon. The [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) is needed for the MCP server; without it, `vm install` marks that step as failed and sets up the rest.
+
+### Install script (recommended)
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/NurFajarSA/vm-manager/main/install.sh | sh
+```
+
+The script downloads the latest release, checks it against its published SHA-256, and runs `vm install`, which sets up everything in the table under [From source](#from-source). Set `VM_MANAGER_VERSION=1.0.0` to pick a version. Read [`install.sh`](install.sh) first if you prefer; it is short.
+
+### From a release
+
+Releases are ad-hoc signed, not notarized: the project has no Apple Developer ID yet. macOS puts a quarantine flag on anything a browser downloads, and for an app without a Developer ID it blocks the app and kills the bundled `vm` without a message. The install script avoids this because `curl` sets no flag. To install a release you downloaded in a browser:
+
+1. Download `VMManager-<version>-macos-arm64.zip` from [Releases](https://github.com/NurFajarSA/vm-manager/releases) and check it with the `.sha256` next to it.
+2. Unzip it, then clear the flag and install:
+
+```bash
+xattr -dr com.apple.quarantine "VM Manager.app"
+"VM Manager.app/Contents/Resources/vm" install --app "VM Manager.app"
+```
+
+`vm install` copies the app to `~/Applications` and clears the quarantine flag on what it installs. Releases also include a standalone `vm-<version>-macos-arm64.tar.gz` with just the CLI.
+
+### With Homebrew
+
+```bash
+brew install --cask nurfajarsa/tap/vm-manager
+vm install --app "/Applications/VM Manager.app"
+```
+
+The cask installs the app in `/Applications`, links `vm` into your `PATH`, and clears the quarantine flag. `vm install` leaves an app that is already in an Applications folder where it is, and removes an older copy from `~/Applications`. Run `vm install` again after `brew upgrade`, and `vm uninstall` before `brew uninstall`. The cask lives in [NurFajarSA/homebrew-tap](https://github.com/NurFajarSA/homebrew-tap).
+
+### From source
+
+Requirements: [Bun](https://bun.sh) 1.3 or later, and Xcode 16 or later (Swift 6).
+
+```bash
+git clone https://github.com/NurFajarSA/vm-manager.git
 cd vm-manager
 bun install
 bun run install:local
@@ -137,7 +200,17 @@ vm ssh shop-web-prod             # password servers sign in from the Keychain
 
 ### VPN and Tailscale
 
-Servers with `--network vpn:openvpn` need OpenVPN Connect. Tell VM Manager which subnets your OpenVPN profile routes, with `vm vpn-routes 10.8.0.0/16` or in **Settings › Network**; they are saved in `vms.json` as `"networks": { "openvpn": { "routes": ["10.8.0.0/16"] } }`. `vm status` counts the VPN as up when this Mac has a route to one of them, or when the route to the first one goes through a `utun` interface. Until a subnet is set, the app shows **VPN subnet not set** and every OpenVPN server that doesn't answer is reported as needing the VPN. Tailscale counts as up when `tailscale status --json` says it is running. A server that doesn't answer is reported as `needs_vpn` when its network is down, and `unreachable` otherwise. The check is a plain TCP connection to the SSH port with a 3-second limit; it never signs in.
+Servers with `--network vpn:openvpn` need OpenVPN Connect. VM Manager has no built-in idea of which subnet that is, so tell it the subnets your OpenVPN profile routes, with `vm vpn-routes <subnet> [<subnet> ...]` or in **Settings › Network**. They are saved in `vms.json`:
+
+```json
+{
+  "version": 1,
+  "networks": { "openvpn": { "routes": ["10.8.0.0/16"] } },
+  "vms": [ … ]
+}
+```
+
+`vm status` counts the VPN as up when this Mac has a route to one of those subnets, or when the route to the first one goes through a `utun` interface. Until a subnet is set, the panel shows **VPN subnet not set** with a link to **Settings › Network**, and every OpenVPN server that doesn't answer is reported as needing the VPN. Everything else works without it. Tailscale counts as up when `tailscale status --json` says it is running. A server that doesn't answer is reported as `needs_vpn` when its network is down, and `unreachable` otherwise. The check is a plain TCP connection to the SSH port with a 3-second limit; it never signs in.
 
 ### Switching a password server to a key
 
@@ -160,20 +233,7 @@ After `vm install`, Claude Code has these tools in every project:
 | `vm_change` | Runs any other command, under the server's policy. Takes an optional `why` that you see next to the approval. |
 | `vm_logs` | `docker logs --tail N <container>` or `journalctl -u <unit> -n N`. |
 
-Ask things like "why is the API on shop-web-prod returning 502?" Claude reads logs and status with `vm_read` and `vm_logs`. When it wants to restart something on a production server, you get a notification with the exact command.
-
 `vm exec <name> -- <command>` runs a command from your own terminal under the same rules, as requester `cli`. It's handy for checking what an agent would be allowed to do.
-
-## Pick a server from the Dock
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/server-picker-dark.png">
-    <img src="docs/images/server-picker.png" width="600" alt="Server picker window titled Which server do you want to open, with a card per active server grouped into Shop, Data and GPU; each card shows a server symbol tinted red for prod or green for dev, a reachability dot, the name, user@address, a PROD or DEV badge, and hints such as Needs VPN, Key missing or No password">
-  </picture>
-</p>
-
-Open VM Manager from the Dock, Finder or Spotlight and it asks which server to open. Each card shows the server's `user@address`, a PROD or DEV badge, the reachability dot, and a hint when it needs the VPN, its key file is missing or no password is saved. Click a card to run `vm ssh <name>` in Terminal (password servers sign in from the Keychain) and close the picker; right-click for Copy IP, Copy SSH Command and Open in Zed; Esc closes it. **Choose Server…** in the menu bar opens it too. It stays hidden when the app starts at login (the login item passes `--at-login`; run `vm install` again to update an older one), and the **Show when VM Manager opens** checkbox turns it off.
 
 ## Settings
 
@@ -212,6 +272,7 @@ vm check [--json] -- <command>           How a command would be treated under ea
 vm login-item [on|off]                   Whether the menu bar app opens at login
 vm mcp                                   MCP server over stdio
 vm install [--app path] / vm uninstall
+vm --version
 ```
 
 `vm add` options: `--group`, `--env prod|dev`, `--port`, `--network public|vpn:openvpn|tailscale`, `--agent free|read-free-change-approve|none`, `--alias <host>` (repeatable), `--notes`. `vm add --json` and `vm edit <name> --json` read a whole server from stdin; the app uses them.
@@ -237,25 +298,35 @@ Files are created with mode 0600 in folders with mode 0700. `vms.json`, approval
 - A command runs under the server's own user. `sudo` works only where that user has passwordless sudo; VM Manager never types a sudo password.
 - New host keys are accepted on first connect (`StrictHostKeyChecking=accept-new`) and stored in `~/.ssh/known_hosts`. A changed key is refused.
 
+## Privacy and security
+
+- Passwords stay in the macOS Keychain. `vm` never writes one to a file, a log or the audit log, and agents never see them.
+- Network traffic goes only to your own servers: `ssh` sessions and a TCP check of each SSH port. There is no telemetry and no account on any server of this project.
+- The audit log stores commands and decisions, never their output, and masks credentials typed into a command.
+- State lives in `~/.config/vm-manager/`, with files at mode `0600`.
+
+See [SECURITY.md](SECURITY.md) for what is stored where, and how to report a vulnerability.
+
 ## Uninstall
 
 ```bash
 vm uninstall
 ```
 
-This removes the binary, the app, its login item and the MCP server. Your server list, the audit log, `~/.ssh/config.d/vm-manager.conf` and the Keychain items stay. Remove passwords with `vm password <name> --delete`, and the Include line from `~/.ssh/config` by hand.
+This removes the binary, the app, its login item and the MCP server. Your server list, the audit log, `~/.ssh/config.d/vm-manager.conf` and the Keychain items stay. Remove passwords with `vm password <name> --delete`, and the Include line from `~/.ssh/config` by hand. With Homebrew, run `vm uninstall` first, then `brew uninstall --cask vm-manager` (`--zap` also deletes `~/.config/vm-manager`).
 
 ## Development
 
 ```bash
 bun install
 bun run check                # typecheck and tests
+CI_NO_KEYCHAIN=1 bun test    # skips test/askpass-e2e.test.ts, which uses a throwaway item in the real Keychain
 bun src/cli.ts list
-HOME=$(mktemp -d) bun src/cli.ts sync-ssh   # try ssh config changes against a throwaway home
+HOME=$(mktemp -d) bun src/cli.ts init --example   # try commands against a throwaway home
 ./macos/build-app.sh         # builds dist/VM Manager.app
 ```
 
-The tests never touch the real `~/.ssh`, the Keychain or a server: they use temp folders, an in-memory secret store and a fake `ssh`.
+The tests never touch the real `~/.ssh` or a server: they use temp folders, an in-memory secret store and a fake `ssh`.
 
 The app reads these environment variables at launch:
 
@@ -280,3 +351,25 @@ scripts/screenshots.sh
 The script runs the app under a throwaway home folder, so it never reads your servers, and it puts the app's preferences back the way they were when it finishes. It needs Screen Recording permission for the terminal you run it from.
 
 The app icon is drawn by `macos/icon/make-icon.swift`; `macos/icon/make-icns.sh` redraws it and rebuilds `AppIcon.icns`.
+
+### Releasing
+
+The version lives in `package.json`. It feeds `vm --version`, the MCP server and the app's `Info.plist`. To release:
+
+1. Bump the version in `package.json`.
+2. Move the `CHANGELOG.md` entries under the new version.
+3. Push a tag `v<version>`.
+
+The `Release` workflow runs the tests, runs `scripts/package-release.sh` on a macOS 26 runner (the SDK the app links against decides its look), and publishes `VMManager-<version>-macos-arm64.zip` and `vm-<version>-macos-arm64.tar.gz` with their checksums. `install.sh` picks up the new release as soon as it is published. For Homebrew, run `scripts/update-cask.sh <version> <path to a homebrew-tap checkout>`: it takes the checksum from the published release, writes `packaging/homebrew/vm-manager.rb`, and copies it into the tap to commit and push. Run the packaging script locally to get the same files in `dist/release/`, and test the install script against them with `VM_MANAGER_BASE_URL=file://$PWD/dist/release VM_MANAGER_VERSION=<version> sh install.sh`.
+
+Signing is optional. Set `DEVELOPER_ID_APP` to a codesign identity to sign with the hardened runtime. To notarize and staple, also set `NOTARY_PROFILE` (a `notarytool` keychain profile), or set `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_PASSWORD`. In CI, the secrets `MACOS_CERT_P12_BASE64` and `MACOS_CERT_PASSWORD` enable signing, and the three `APPLE_*` secrets enable notarization. Without them, the release is ad-hoc signed.
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first, and run `bun run check` before you open a pull request.
+
+## License
+
+[MIT](LICENSE)
+
+VM Manager is an independent project. It is not affiliated with, endorsed by, or sponsored by Anthropic. Claude is a trademark of Anthropic, PBC.
