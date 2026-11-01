@@ -36,6 +36,7 @@ A handful of servers is easy to lose track of: which IP was the payment box, whi
 **Menu bar app**
 - One module per group, a red PROD or green DEV badge on each server, and a dot for reachability: green when the SSH port answers, orange when it needs the VPN, gray when it doesn't answer.
 - Click a server to open a shell in Terminal. Right-click for Copy IP, Copy SSH Command, Open in Zed, Run Status Check and Edit….
+- A server picker, like Chrome's profile picker: opening the app from the Dock, Finder or Spotlight asks which server to open, and one click opens a shell on it.
 - Commands waiting for approval sit at the top of the panel, and arrive as notifications with **Approve** and **Deny**.
 - A Settings window in the System Settings style: servers, agent access, approvals, the audit log and network status.
 
@@ -163,6 +164,17 @@ Ask things like "why is the API on shop-web-prod returning 502?" Claude reads lo
 
 `vm exec <name> -- <command>` runs a command from your own terminal under the same rules, as requester `cli`. It's handy for checking what an agent would be allowed to do.
 
+## Pick a server from the Dock
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/server-picker-dark.png">
+    <img src="docs/images/server-picker.png" width="600" alt="Server picker window titled Which server do you want to open, with a card per active server grouped into Shop, Data and GPU; each card shows a server symbol tinted red for prod or green for dev, a reachability dot, the name, user@address, a PROD or DEV badge, and hints such as Needs VPN, Key missing or No password">
+  </picture>
+</p>
+
+Open VM Manager from the Dock, Finder or Spotlight and it asks which server to open. Each card shows the server's `user@address`, a PROD or DEV badge, the reachability dot, and a hint when it needs the VPN, its key file is missing or no password is saved. Click a card to run `vm ssh <name>` in Terminal (password servers sign in from the Keychain) and close the picker; right-click for Copy IP, Copy SSH Command and Open in Zed; Esc closes it. **Choose Server…** in the menu bar opens it too. It stays hidden when the app starts at login (the login item passes `--at-login`; run `vm install` again to update an older one), and the **Show when VM Manager opens** checkbox turns it off.
+
 ## Settings
 
 <img src="docs/images/settings-agent.png" width="600" alt="Settings window on the Agent Access pane, explaining the three policies with how many servers use each, and a policy picker per server">
@@ -257,6 +269,7 @@ The app reads these environment variables at launch:
 | `VM_MANAGER_OPEN_SETTINGS=1` | Opens Settings at launch; add `-settingsPane servers` (or another pane) to pick the page |
 | `VM_MANAGER_OPEN_ROUTE=<server>` | With `VM_MANAGER_OPEN_SETTINGS=1`, opens that server's page |
 | `VM_MANAGER_OPEN_APPROVALS=1` | Opens the approvals window at launch |
+| `VM_MANAGER_OPEN_PICKER=1` | Opens the server picker at launch; any other `VM_MANAGER_*` variable keeps it closed |
 
 The screenshots in `docs/images` come from the fixtures in `scripts/demo`, served by a stand-in `vm`. To regenerate them after a UI change, build the app and run:
 
@@ -264,6 +277,6 @@ The screenshots in `docs/images` come from the fixtures in `scripts/demo`, serve
 scripts/screenshots.sh
 ```
 
-The script runs the app under a throwaway home folder, so it never reads your servers or changes your preferences. It needs Screen Recording permission for the terminal you run it from.
+The script runs the app under a throwaway home folder, so it never reads your servers, and it puts the app's preferences back the way they were when it finishes. It needs Screen Recording permission for the terminal you run it from.
 
 The app icon is drawn by `macos/icon/make-icon.swift`; `macos/icon/make-icns.sh` redraws it and rebuilds `AppIcon.icns`.

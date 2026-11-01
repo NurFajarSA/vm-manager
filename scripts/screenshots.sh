@@ -7,11 +7,23 @@ root=${0:A:h:h}
 app="$root/dist/VM Manager.app/Contents/MacOS/VMManager"
 out="$root/docs/images"
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+# macOS keeps the app's preferences (window frames, the last Settings page) in the real defaults domain even
+# under CFFIXED_USER_HOME, so save it first and put it back afterwards.
+domain=app.vm-manager
+had_prefs=0
+defaults export "$domain" "$work/prefs.plist" >/dev/null 2>&1 && had_prefs=1
+restore() {
+  defaults delete "$domain" >/dev/null 2>&1 || true
+  (( had_prefs )) && defaults import "$domain" "$work/prefs.plist"
+  rm -rf "$work"
+}
+trap restore EXIT
+# Start from no saved window frames, so every window opens at its default size.
+defaults read "$domain" 2>/dev/null | awk -F'"' '/NSWindow Frame/{print $2}' | while read -r key; do defaults delete "$domain" "$key"; done
 mkdir -p "$out"
 xcrun swiftc -O -o "$work/window-id" "$root/scripts/demo/window-id.swift"
 
-# A throwaway home keeps your own servers out of the pictures and the demo out of your preferences.
+# A throwaway home keeps your own servers out of the pictures.
 home="$work/home"
 mkdir -p "$home/.local/bin" "$home/.config/vm-manager/approvals" "$home/Library/LaunchAgents"
 cp "$root"/scripts/demo/{vm,*.json} "$home/.local/bin/"
@@ -31,6 +43,8 @@ capture() {
     window=$("$work/window-id" "$pid" 2>/dev/null) && break
   done
   sleep 2
+  # Ask again once the window has settled: while it animates open, its width is not the final one.
+  [[ -n $window ]] && window=$("$work/window-id" "$pid" 2>/dev/null || echo "$window")
   if [[ -n $window ]]; then
     screencapture -x -o -l "${window% *}" "$out/$file" && echo "$out/$file"
     # A window on a Retina screen comes out at 2x; keep every picture at 1x so they match.
@@ -46,6 +60,8 @@ capture() {
 capture menu-bar.png light VM_MANAGER_PREVIEW_PANEL=1
 capture menu-bar-dark.png dark VM_MANAGER_PREVIEW_PANEL=1
 capture menu-bar-inactive.png light VM_MANAGER_PREVIEW_PANEL=1 VM_MANAGER_SNAPSHOT_INACTIVE=1
+capture server-picker.png light VM_MANAGER_OPEN_PICKER=1
+capture server-picker-dark.png dark VM_MANAGER_OPEN_PICKER=1
 capture approvals.png light VM_MANAGER_OPEN_APPROVALS=1
 capture approvals-dark.png dark VM_MANAGER_OPEN_APPROVALS=1
 capture settings-server.png light VM_MANAGER_OPEN_SETTINGS=1 VM_MANAGER_OPEN_ROUTE=shop-web-prod

@@ -23,6 +23,14 @@ export function layout(paths: Paths): InstallLayout {
 
 export type Step = { name: string; ok: boolean; detail: string };
 
+/**
+ * How the login item starts the app. `--at-login` tells the app it was started by launchd, so it stays in the
+ * menu bar instead of opening the server picker; opening it from the Dock, Finder or Spotlight shows the picker.
+ */
+export function appLaunchArgs(app: string): string[] {
+  return ["/usr/bin/open", "-a", app, "--args", "--at-login"];
+}
+
 /** The exact `claude mcp add` arguments `vm install` uses, kept here so the README and tests agree. */
 export function mcpAddArgs(bin: string): string[] {
   return ["mcp", "add", "--scope", "user", MCP_NAME, "--", bin, "mcp"];
@@ -69,7 +77,7 @@ export async function install({ paths, sourceBinary, app }: { paths: Paths; sour
       }
       await unquarantine(target);
       const plist = join(l.launchAgents, `${APP_LABEL}.plist`);
-      await writeLaunchAgent(plist, APP_LABEL, ["/usr/bin/open", "-a", target, "--args", "--at-login"], paths.logFile);
+      await writeLaunchAgent(plist, APP_LABEL, appLaunchArgs(target), paths.logFile);
       await reloadAgent(plist, APP_LABEL);
       return `${target} (opens at login)`;
     });
@@ -107,7 +115,7 @@ export async function setLoginItem({ paths, enabled }: { paths: Paths; enabled: 
   if (enabled) {
     const app = await installedApp(l);
     if (!app) throw new Error(`${APP_NAME} is not installed in ${l.appDir} or ${SYSTEM_APP_DIR}`);
-    await writeLaunchAgent(plist, APP_LABEL, ["/usr/bin/open", "-a", app, "--args", "--at-login"], paths.logFile);
+    await writeLaunchAgent(plist, APP_LABEL, appLaunchArgs(app), paths.logFile);
   } else {
     await sh(["/bin/launchctl", "bootout", `gui/${process.getuid?.() ?? 501}/${APP_LABEL}`], { allowFailure: true });
     await rm(plist, { force: true });

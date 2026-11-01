@@ -253,6 +253,11 @@ final class Store {
         }
     }
 
+    /// Opens an interactive `vm ssh <name>` in Terminal, whatever the login: password servers sign in from the Keychain.
+    func openShell(_ server: Server) {
+        runInTerminal(name: server.name, command: [CLI.binary.path, "ssh", server.name])
+    }
+
     func keySetup(_ server: Server) {
         runInTerminal(name: "key-setup-\(server.name)", command: [CLI.binary.path, "key-setup", server.name], keepOpen: true)
     }

@@ -2,15 +2,11 @@ import AppKit
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// Opening the app again from Finder or Spotlight shows Settings, since the panel lives in the menu bar.
+    /// Clicking the Dock icon, or opening the app again from Finder or Spotlight, shows the server picker.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        NotificationCenter.default.post(name: .showSettings, object: nil)
+        NotificationCenter.default.post(name: .showServerPicker, object: nil)
         return true
     }
-}
-
-extension Notification.Name {
-    static let showSettings = Notification.Name("app.vm-manager.showSettings")
 }
 
 @main
@@ -34,13 +30,18 @@ struct VMManagerApp: App {
             .accessibilityValue(store.pending.isEmpty ? "Nothing waiting" : "\(store.pending.count) waiting for approval")
             .task {
                 await Snapshot.previewIfRequested(store: store)
-                await store.start()
                 let environment = ProcessInfo.processInfo.environment
+                let developerLaunch = environment.keys.contains { $0.hasPrefix("VM_MANAGER_") }
+                if environment["VM_MANAGER_OPEN_PICKER"] == "1"
+                    || (!developerLaunch && !ServerPicker.launchedAtLogin && ServerPicker.showOnLaunch) {
+                    showPicker()
+                }
+                await store.start()
                 if environment["VM_MANAGER_OPEN_SETTINGS"] == "1" { showSettings() }
                 if environment["VM_MANAGER_OPEN_APPROVALS"] == "1" { showApprovals() }
             }
             .onReceive(NotificationCenter.default.publisher(for: .showApprovals)) { _ in showApprovals() }
-            .onReceive(NotificationCenter.default.publisher(for: .showSettings)) { _ in showSettings() }
+            .onReceive(NotificationCenter.default.publisher(for: .showServerPicker)) { _ in showPicker() }
         }
         .menuBarExtraStyle(.window)
 
@@ -48,6 +49,13 @@ struct VMManagerApp: App {
             SettingsView(store: store)
         }
         .defaultSize(width: 880, height: 600)
+        .defaultPosition(.center)
+
+        Window("Choose a Server", id: ServerPicker.windowID) {
+            ServerPickerView(store: store)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 760, height: 760)
         .defaultPosition(.center)
 
         Window("Approvals", id: "approvals") {
@@ -65,6 +73,11 @@ struct VMManagerApp: App {
     private func showApprovals() {
         NSApp.activate(ignoringOtherApps: true)
         openWindow(id: "approvals")
+    }
+
+    private func showPicker() {
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow(id: ServerPicker.windowID)
     }
 }
 
@@ -109,6 +122,10 @@ struct Panel: View {
                         await store.reload()
                         await store.refreshStatus()
                     }
+                }
+                ActionRow(title: "Choose Server…") {
+                    NSApp.activate(ignoringOtherApps: true)
+                    openWindow(id: ServerPicker.windowID)
                 }
                 ActionRow(title: "Add Server…") { openSettings(.newServer) }
                 ActionRow(title: "Settings…") { openSettings(nil) }
@@ -345,14 +362,15 @@ struct StatusDot: View {
     var network: String = "public"
 
     var body: some View {
+        let label = Self.label(state, network: network)
         Circle()
-            .fill(color)
+            .fill(Self.color(state))
             .frame(width: 8, height: 8)
             .accessibilityLabel(label)
             .help(label)
     }
 
-    private var color: Color {
+    static func color(_ state: Reachability?) -> Color {
         switch state {
         case .reachable: .green
         case .needs_vpn: .orange
@@ -361,7 +379,7 @@ struct StatusDot: View {
         }
     }
 
-    private var label: String {
+    static func label(_ state: Reachability?, network: String) -> String {
         switch state {
         case .reachable: "Reachable"
         case .needs_vpn: network == "tailscale" ? "Needs Tailscale" : "Needs VPN"
